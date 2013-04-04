@@ -1,0 +1,34 @@
+--- gringo-3.0.5-source/libgringo/src/parser.r2c	2013-03-08 14:45:28.000000000 +0100
++++ gringo-3.0.5-source-fasp/libgringo/src/parser.r2c	2013-04-04 21:33:24.358791966 +0200
+@@ -59,6 +59,7 @@
+ 
+ /*!re2c
+ 	NUMBER     = "0"|([1-9][0-9]*);
++	FUZZY      = "#0"|("#0."[0-9]+)|"#1"|"#1.""0"+;
+ 	ANY        = [\000-\377];
+ 	WS         = [\t\r ]*;
+ 	NL         = "\n";
+@@ -97,6 +98,7 @@
+ 		"#supremum"      { return PARSER_SUPREMUM; }
+ 		IDENTIFIER       { token_.index  = g_->index(string()); return PARSER_IDENTIFIER; }
+ 		NUMBER           { token_.number = integer(); return PARSER_NUMBER; }
++		FUZZY            { token_.index = g_->index(string()); return PARSER_FUZZY; }
+ 		VARIABLE         { token_.index = g_->index(string()); return PARSER_VARIABLE; }
+ 		ANONYMOUS        { return PARSER_ANONYMOUS; }
+ 		STRING           { token_.index = g_->index(g_->unquote(string(1,1))); return PARSER_STRING; }
+@@ -198,7 +200,6 @@
+ 		"#include"       { return PARSER_INCLUDE; }
+ 		"#show"          { return PARSER_SHOW; }
+ 		"#hide"          { return PARSER_HIDE; }
+-		"#const"         { return PARSER_CONST; }
+ 		"#minimi"[zs]"e" { return PARSER_MINIMIZE; }
+ 		"#maximi"[zs]"e" { return PARSER_MAXIMIZE; }
+ 		"#compute"       { return PARSER_COMPUTE; }
+@@ -211,6 +212,7 @@
+ 		"#supremum"      { return PARSER_SUPREMUM; }
+ 		IDENTIFIER       { token_.index  = g_->index(string()); return PARSER_IDENTIFIER; }
+ 		NUMBER           { token_.number = integer(); return PARSER_NUMBER; }
++		FUZZY            { token_.index = g_->index(string()); return PARSER_FUZZY; }
+ 		VARIABLE         { token_.index = g_->index(string()); return PARSER_VARIABLE; }
+ 		ANONYMOUS        { return PARSER_ANONYMOUS; }
+ 		STRING           { token_.index = g_->index(g_->unquote(string(1,1))); return PARSER_STRING; }

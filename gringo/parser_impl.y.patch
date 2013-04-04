@@ -1,0 +1,10 @@
+--- gringo-3.0.5-source/libgringo/src/parser_impl.y	2013-03-08 14:45:28.000000000 +0100
++++ gringo-3.0.5-source-fasp/libgringo/src/parser_impl.y	2013-04-04 21:33:24.358791966 +0200
+@@ -378,6 +378,7 @@
+ predicate(res) ::= IDENTIFIER(id) LBRAC termlist(terms) RBRAC.             { res = pParser->predLit(id.loc(), id.index, *terms, false); delete terms; }
+ predicate(res) ::= MINUS(sign) IDENTIFIER(id).                             { TermPtrVec terms; res = pParser->predLit(sign.loc(), id.index, terms, true); }
+ predicate(res) ::= IDENTIFIER(id).                                         { TermPtrVec terms; res = pParser->predLit(id.loc(), id.index, terms, false); }
++predicate(res) ::= FUZZY(id).                                              { GRD->externalStm(id.index, 0); TermPtrVec terms; res = pParser->predLit(id.loc(), id.index, terms, false); }
+ 
+ termlist(res) ::= term(term).                                { res = vec1(term); }
+ termlist(res) ::= termlist(list) COMMA term(term).           { res = list; list->push_back(term); }
