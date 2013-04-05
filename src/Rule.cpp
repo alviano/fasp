@@ -81,12 +81,6 @@ bool Rule::onIncreaseLowerBound() {
     return head.updateLowerBound(computeBodyLowerBound());
 }
 
-bool Rule::onDecreaseLowerBound() {
-    if(head.getSourcePointer() == this)
-        return head.updateUpperBound(computeBodyUpperBound());
-    return true;
-}
-
 bool Rule::onIncreaseUpperBound() {
     return head.updateSourcePointer(computeBodyUpperBound(), this);
 }

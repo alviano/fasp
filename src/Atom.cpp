@@ -156,9 +156,6 @@ bool Atom::updateSourcePointer(double value, Rule* sourcePointer) {
         for(list<Rule*>::iterator it = data->positiveBodyOccurrences.begin(); it != data->positiveBodyOccurrences.end(); ++it)
             if(!(**it).onIncreaseUpperBound())
                 return false;
-        for(list<Rule*>::iterator it = data->negativeBodyOccurrences.begin(); it != data->negativeBodyOccurrences.end(); ++it)
-            if(!(**it).onDecreaseLowerBound())
-                return false;
     }
     return true;
 }
