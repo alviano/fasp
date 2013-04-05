@@ -1,9 +1,0 @@
---- gringo-3.0.5-source/libgringo/gringo/rule.h	2013-03-08 14:45:26.000000000 +0100
-+++ gringo-3.0.5-source-fasp/libgringo/gringo/rule.h	2013-04-04 21:33:23.826784333 +0200
-@@ -47,5 +47,6 @@
- 	std::auto_ptr<Lit> head_;
- 	LitPtrVec          body_;
- 	bool               grounded_;
-+	float              constant_;
- };
- 
