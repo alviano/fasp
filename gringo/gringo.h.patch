@@ -1,5 +1,5 @@
 --- gringo-3.0.5-source/libgringo/gringo/gringo.h	2013-03-08 14:45:26.000000000 +0100
-+++ gringo-3.0.5-source-fasp/libgringo/gringo/gringo.h	2013-04-04 21:33:23.950786116 +0200
++++ gringo-3.0.5-source-fasp/libgringo/gringo/gringo.h	2013-03-23 23:40:44.000000000 +0100
 @@ -89,7 +89,7 @@
  class PrgVisitor;
  class Printer;
