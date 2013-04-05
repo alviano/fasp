@@ -73,8 +73,7 @@ void Component::initLinearProgram() {
 }
 
 bool Component::updateLowerBoundsByLinearProgram() {
-    if(!changedBounds)
-        return true;
+    assert(changedBounds);
     changedBounds = false;
 
     unordered_set<int> done;

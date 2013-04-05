@@ -29,6 +29,7 @@ public:
     int size() const { return _size; }
     bool isRecursive() const { return recursive; }
     bool hasOddCycles() const;
+    bool hasChangedBounds() const { return changedBounds; }
 
     void setRecursive() { recursive = true; }
 

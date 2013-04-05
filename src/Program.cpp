@@ -96,10 +96,18 @@ void Program::initInterpretation() {
     }
 
     trace(std, 2, "Processing inequalities\n");
-    for(list<Component*>::iterator it = components.begin(); it != components.end(); ++it) {
-        if(!(**it).updateLowerBoundsByLinearProgram()) {
-            onInconsistency();
-            return;
+    bool stop = false;
+    while(!stop) {
+        stop = true;
+        for(list<Component*>::iterator it = components.begin(); it != components.end(); ++it) {
+            Component& component = **it;
+            if(!component.hasChangedBounds())
+                continue;
+            stop = false;
+            if(!(**it).updateLowerBoundsByLinearProgram()) {
+                onInconsistency();
+                return;
+            }
         }
     }
 }
