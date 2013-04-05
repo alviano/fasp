@@ -5,6 +5,7 @@
 #include "Component.h"
 
 #include <cassert>
+#include <cstring>
 #include <iostream>
 #include <sstream>
 
@@ -195,9 +196,21 @@ bool Atom::updateUpperBound(double value) {
 }
 
 bool Atom::initConstant() {
-    stringstream ss(getName().c_str()+1);
+    assert(getName()[0] == '#');
+
     double degree;
+    stringstream ss(getName().c_str()+1);
     ss >> degree;
+    if(!ss.eof()) {
+        char c;
+        ss >> c;
+        assert(c == '/');
+        double denominator;
+        ss >> denominator;
+        assert(denominator > 0);
+        degree /= denominator;
+    }
+
     if(!updateSourcePointer(degree, NULL) || !updateLowerBound(getUpperBound()))
         return false;
 
