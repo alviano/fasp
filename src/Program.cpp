@@ -93,6 +93,10 @@ void Program::initInterpretation() {
             constants.push_back(*curr);
             atomList.erase(curr);
         }
+        else if(!atom.initSourcePointer()) {
+            onInconsistency();
+            return;
+        }
     }
 
     trace(std, 2, "Processing inequalities\n");

@@ -48,6 +48,7 @@ public:
     bool updateSourcePointer(double value, Rule* sourcePointer);
     bool updateUpperBound(double value);
     bool initConstant();
+    bool initSourcePointer();
 
     bool isInconsistent() const;
 

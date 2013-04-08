@@ -210,6 +210,7 @@ bool Atom::initConstant() {
         assert(denominator > 0);
         degree /= denominator;
     }
+    assert(0 <= degree && degree <= 1);
 
     if(!updateSourcePointer(degree, NULL) || !updateLowerBound(getUpperBound()))
         return false;
@@ -218,6 +219,23 @@ bool Atom::initConstant() {
         (**rule).addToRowBound(-getLowerBound());
     for(list<Rule*>::iterator rule = data->negativeBodyOccurrences.begin(); rule != data->negativeBodyOccurrences.end(); ++rule)
         (**rule).addToRowBound(getLowerBound());
+    return true;
+}
+
+bool Atom::initSourcePointer() {
+    assert(data != NULL);
+    if(data->sourcePointer == NULL) {
+        assert(data->upperBound == 0);
+        trace(std, 3, "Atom %s has no source pointers\n", getName().c_str());
+
+        /*for(list<Rule*>::iterator it = data->positiveBodyOccurrences.begin(); it != data->positiveBodyOccurrences.end(); ++it)
+            if(!(**it).onDecreaseUpperBound())
+                return false;*/
+        for(list<Rule*>::iterator it = data->negativeBodyOccurrences.begin(); it != data->negativeBodyOccurrences.end(); ++it)
+            if(!(**it).onIncreaseLowerBound())
+                return false;
+    }
+
     return true;
 }
 

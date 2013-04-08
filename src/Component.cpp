@@ -100,12 +100,13 @@ bool Component::updateLowerBoundsByLinearProgram() {
         }
 
         glp_exact(linearProgram, NULL);
-        double lb(glp_get_obj_val(linearProgram));//, atom.getLowerBound());
+        double lb(glp_get_obj_val(linearProgram));
         //cout << "LINEAR PROGRAM: " << atom << " " << lb << " was " << atom.getLowerBound() << endl;
         glp_set_obj_coef(linearProgram, atom.getColumnIndexInLinearProgram(), 0);
         if(!atom.updateLowerBound(lb))
             return false;
     }
+
     return true;
 }
 
