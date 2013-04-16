@@ -212,7 +212,7 @@ bool Atom::initConstant() {
     }
     assert(0 <= degree && degree <= 1);
 
-    if(!updateSourcePointer(degree, NULL) || !updateLowerBound(getUpperBound()))
+    if(!updateSourcePointer(1, NULL) || !updateUpperBound(degree) || !updateLowerBound(getUpperBound()))
         return false;
 
     for(list<Rule*>::iterator rule = data->positiveBodyOccurrences.begin(); rule != data->positiveBodyOccurrences.end(); ++rule)

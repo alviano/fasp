@@ -49,7 +49,7 @@ void Program::addDependency(Atom head, Atom body) {
 void Program::printInterpretation(ostream& out) const {
     for(list<Atom::Data*>::const_iterator it = atomList.begin(); it != atomList.end(); ++it) {
         Atom atom(*it);
-        out << atom << " [" << atom.getLowerBound() << "," << atom.getUpperBound() << "]  \t";
+        out << atom << "[" << atom.getLowerBound() << ";" << atom.getUpperBound() << "] ";
     }
     out << endl;
 }
@@ -93,7 +93,10 @@ void Program::initInterpretation() {
             constants.push_back(*curr);
             atomList.erase(curr);
         }
-        else if(!atom.initSourcePointer()) {
+    }
+    for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ++it) {
+        Atom atom(*it);
+        if(!atom.initSourcePointer()) {
             onInconsistency();
             return;
         }
