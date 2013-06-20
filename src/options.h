@@ -18,6 +18,9 @@
 
 using namespace std;
 
+#define EPSILON .0000000001
+
+
 /**
  * This structure contains a field for each command-line option.
  *
@@ -26,6 +29,8 @@ using namespace std;
  */
 struct Options
 {
+    enum Mode { WELL_FOUNDED = 0, ALL_APPROXIMATIONS, ANSWER_SET, ANSWER_SET_UNOPTIMIZED };
+
     Options();
     ~Options();
 
@@ -33,8 +38,12 @@ struct Options
     void printHelp() const;
     void setTnorm(const char* str);
     void setGlpkTermOut();
+    void setBilevelProgram(const char* str);
+    void setOctaveTermOut();
 
     Tnorm* tnorm;
+    Mode mode;
+    bool octaveTermOut;
 
 #ifndef TRACE_OFF
     TraceLevels traceLevels;

@@ -29,10 +29,14 @@ struct Options __options__;
 #define OPTIONID_trace_std ('z' + 1)
 #define OPTIONID_tnorm ('z' + 2)
 #define OPTIONID_glpk_term_out ('z' + 3)
+#define OPTIONID_mode ('z' + 4)
+#define OPTIONID_octave_term_out ('z' + 5)
 
 Options::Options() {
     glp_term_out(GLP_OFF);
     tnorm = new LukasiewiczTnorm();
+    mode = ALL_APPROXIMATIONS;
+    octaveTermOut = false;
 }
 
 Options::~Options() {
@@ -58,9 +62,11 @@ void Options::parse(int argc, char* const* argv) {
             {
                 { "help", no_argument, NULL, OPTIONID_help },
                 { "tnorm", required_argument, NULL, OPTIONID_tnorm },
+                { "mode", required_argument, NULL, OPTIONID_mode },
                 #ifndef TRACE_OFF
                 { "trace-std", required_argument, NULL, OPTIONID_trace_std },
                 { "glpk-term-out", no_argument, NULL, OPTIONID_glpk_term_out },
+                { "octave-term-out", no_argument, NULL, OPTIONID_octave_term_out },
                 #endif
 
                 // The NULL-option indicates the end of the array.
@@ -96,8 +102,16 @@ void Options::parse(int argc, char* const* argv) {
             setGlpkTermOut();
             break;
 
+        case OPTIONID_mode:
+            setBilevelProgram(optarg);
+            break;
+
+        case OPTIONID_octave_term_out:
+            setOctaveTermOut();
+            break;
+
         default:
-            //cerr << "ERROR: Invalid command-line option: " << argv[optionIndex] << endl;
+            cerr << "ERROR: Invalid command-line option: " << argv[optionIndex] << endl;
             exit(-1);
             break;
         }
@@ -116,9 +130,17 @@ void Options::printHelp() const {
     cout << "\n\tThe input program is read from STDIN\n";
     cout << "\ncommand-line options";
     cout << "\n\t-h, --help\t\tprints the help and exit";
-    cout << "\n\t    --trace-std=N\tsets standard trace level to N";
     cout << "\n\t    --tnorm=VALUE\tsets the t-norm: VALUE can be lukasiewicz (default), godel or product";
+    cout << "\n\t    --mode=VALUE: VALUE can be"
+         << "\n\t\tall-approximations (default): computes all approximation operators"
+         << "\n\t\twell-founded: computes the well-founded semantics"
+         << "\n\t\tanswer-set: computes one fuzzy answer set after all approximation operators"
+         << "\n\t\tanswer-set-unoptimized: computes one fuzzy answer set without computing approximation operators";
+    #ifndef NDEBUG
+    cout << "\n\t    --trace-std=N\tsets standard trace level to N";
     cout << "\n\t    --glpk-term-out\tactivate the terminal output of GLPK";
+    cout << "\n\t    --octave-term-out\tactivate the terminal output of Octave";
+    #endif
     cout << endl;
 }
 
@@ -140,4 +162,23 @@ void Options::setTnorm(const char* str) {
 
 void Options::setGlpkTermOut() {
     glp_term_out(GLP_ON);
+}
+
+void Options::setBilevelProgram(const char* str) {
+    if(strcmp(str, "well-founded") == 0)
+        mode = WELL_FOUNDED;
+    else if(strcmp(str, "all-approximations") == 0)
+        mode = ALL_APPROXIMATIONS;
+    else if(strcmp(str, "answer-set") == 0)
+        mode = ANSWER_SET;
+    else if(strcmp(str, "answer-set-unoptimized") == 0)
+        mode = ANSWER_SET_UNOPTIMIZED;
+    else {
+        cerr << "ERROR: Invalid option for --well-founded. Should be well-founded, all-approximations, answer-set or answer-set-unoptimized." << endl;
+        exit(-1);
+    }
+}
+
+void Options::setOctaveTermOut() {
+    octaveTermOut = true;
 }

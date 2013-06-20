@@ -26,6 +26,7 @@ public:
 	void printSourcePointers(ostream& out) const;
 	
     void initInterpretation();
+    void setNaiveBounds();
     
     const Tnorm& getTnorm() const { return *tnorm; }
 
@@ -37,6 +38,11 @@ public:
 
     string toString() const;
 
+    void computeFuzzyAnswerSet();
+    void printBilevelProgram(ostream& out);
+
+    bool isInchoerent() const { return incoherent; }
+
 private:
     list<Rule*> rules;
     unordered_map<int, Atom::Data*> atoms;
@@ -45,6 +51,8 @@ private:
     Tnorm* tnorm;
     DependencyGraph dependencyGraph;
     list<Component*> components;
+    int nextIdInBilevelProgram;
+    bool incoherent;
 
     void printSCC(ostream& out) const;
     void computeSCC();

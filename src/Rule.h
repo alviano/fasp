@@ -36,6 +36,8 @@ public:
     void buildLinearProgram(glp_prob* linearProgram, vector<int>& matrixRow, vector<int>& matrixCol, vector<double>& matrixVal);
     void addToRowBound(double shift);
 
+    void printBilevelProgram(ostream& out, int& nextIdInBilevelProgram);
+
 private:
     Program& program;
     Atom head;
@@ -46,6 +48,8 @@ private:
     
     double getLiteralLowerBound(int idx) const;
     double getLiteralUpperBound(int idx) const;
+
+    void printBilevelProgram(ostream& out, int& nextIdInBilevelProgram, Atom& atom, bool negative);
 };
 
 const Atom& Rule::getBodyAtom(int idx) const {

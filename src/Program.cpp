@@ -3,6 +3,9 @@
 #include "trace.h"
 #include "LukasiewiczTnorm.h"
 
+#include <cstdio>
+#include <cstring>
+#include <fstream>
 #include <sstream>
 #include <typeinfo>
 
@@ -12,7 +15,7 @@ ostream& operator<<(ostream& out, const Program& program) {
     return out;
 }
 
-Program::Program(const Tnorm& _tnorm) : tnorm(_tnorm.clone())
+Program::Program(const Tnorm& _tnorm) : tnorm(_tnorm.clone()), nextIdInBilevelProgram(1)
 {
     getFalseAtom().setName("#0");
 }
@@ -51,11 +54,16 @@ void Program::printInterpretation(ostream& out) const {
         Atom atom(*it);
         out << atom << "[" << atom.getLowerBound() << ";" << atom.getUpperBound() << "] ";
     }
+    //for(list<Atom::Data*>::const_iterator it = constants.begin(); it != constants.end(); ++it) {
+    //    Atom atom(*it);
+    //    out << atom << "[" << atom.getLowerBound() << ";" << atom.getUpperBound() << "] ";
+    //}
     out << endl;
 }
 
 void Program::onInconsistency() {
     cout << "INCOHERENT" << endl;
+    incoherent = true;
 }
 
 void Program::printSourcePointers(ostream& out) const {
@@ -65,6 +73,8 @@ void Program::printSourcePointers(ostream& out) const {
         out << atom << "\t";
         if(atom.getSourcePointer() != NULL)
             out << *atom.getSourcePointer();
+        else
+            out << "NULL";
         out << "\n";
     }
     out << endl;
@@ -90,10 +100,29 @@ void Program::initInterpretation() {
                 onInconsistency();
                 return;
             }
+            atom.data->sourcePointer = NULL;
             constants.push_back(*curr);
             atomList.erase(curr);
         }
     }
+
+    /*
+    trace(std, 3, "Resetting upper bounds\n");
+    for(list<Atom::Data*>::iterator it = constants.begin(); it != constants.end(); ++it)
+        (**it).upperBound = 0;
+    for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ++it)
+        (**it).upperBound = 0;
+
+    trace(std, 3, "Computing new upper bounds\n");
+    for(list<Atom::Data*>::iterator it = constants.begin(); it != constants.end(); ++it) {
+        Atom atom(*it);
+        atom.updateSourcePointer(atom.getLowerBound(), NULL);
+    }
+    for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ++it) {
+       Atom atom(*it);
+       atom.findSourcePointer();
+    }
+
     for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ++it) {
         Atom atom(*it);
         if(!atom.initSourcePointer()) {
@@ -101,25 +130,55 @@ void Program::initInterpretation() {
             return;
         }
     }
+    */
 
-    trace(std, 2, "Processing inequalities\n");
-    bool stop = false;
-    while(!stop) {
-        stop = true;
-        for(list<Component*>::iterator it = components.begin(); it != components.end(); ++it) {
-            Component& component = **it;
-            if(!component.hasChangedBounds())
-                continue;
-            stop = false;
-            if(!(**it).updateLowerBoundsByLinearProgram()) {
-                onInconsistency();
-                return;
+    for(list<Atom::Data*>::iterator it = constants.begin(); it != constants.end(); ++it) {
+        Atom atom(*it);
+        if(!atom.checkConstant()) {
+            onInconsistency();
+            return;
+        }
+    }
+
+    if(__options__.mode != Options::WELL_FOUNDED) {
+        trace(std, 2, "Processing inequalities\n");
+        bool stop = false;
+        while(!stop) {
+            stop = true;
+            for(list<Component*>::iterator it = components.begin(); it != components.end(); ++it) {
+                Component& component = **it;
+                if(!component.hasChangedBounds())
+                    continue;
+                stop = false;
+                if(!(**it).updateLowerBoundsByLinearProgram()) {
+                    onInconsistency();
+                    return;
+                }
             }
         }
     }
 }
 
+void Program::setNaiveBounds() {
+    trace(std, 2, "Set naive bounds\n");
+    for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ) {
+        list<Atom::Data*>::iterator curr = it++;
+        Atom atom(*curr);
+        if(atom.isConstant()) {
+            trace(std, 3, "Found constant %s\n", atom.getName().c_str());
+            atom.parseBoundsForConstant();
+            constants.push_back(*curr);
+            atomList.erase(curr);
+        }
+        else {
+            atom.data->upperBound = 1;
+        }
+    }
+
+}
+
 void Program::computeSCC() {
+    /* TO BE REVISED
     vector<int>* component_ = NULL;
     int num = dependencyGraph.computeSCC(component_);
     vector<int>& component = *component_;
@@ -140,6 +199,15 @@ void Program::computeSCC() {
             delete components[i];
     }
     delete component_;
+    */
+    Component* c = new Component();
+    for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ++it) {
+        Atom atom(*it);
+        if(!atom.isConstant())
+            c->add(atom);
+    }
+    c->initLinearProgram();
+    this->components.push_back(c);
 }
 
 void Program::printSCC(ostream& out) const {
@@ -153,3 +221,117 @@ string Program::toString() const {
     ss << *this;
     return ss.str();
 }
+
+void Program::computeFuzzyAnswerSet() {
+    char tmpFile[] = "/tmp/fasp.XXXXXX";
+    mkstemp(tmpFile);
+    ofstream out(tmpFile);
+    this->printBilevelProgram(out);
+    out.close();
+
+    stringstream cmd;
+    cmd << "octave " << tmpFile;
+    FILE* f = popen(cmd.str().c_str(), "r");
+    if(f == 0)
+        return;
+
+    char buff[1024];
+    while(fgets(buff, 1024, f) != NULL) {
+        if(strcmp(buff, "SOLUTION\n") == 0) {
+            int i = 1;
+            list<Atom::Data*>::const_iterator it = atomList.begin();
+            while(fgets(buff, 1024, f) != NULL) {
+                Atom atom(*it);
+                assert(atom.data->columnInBilevelProgram == i);
+
+                stringstream ss(buff);
+                double value;
+                ss >> value;
+
+                // Fix problem due to precision
+                if(value < atom.getLowerBound())
+                    value = atom.getLowerBound();
+                else if(value > atom.getUpperBound())
+                    value = atom.getUpperBound();
+
+                cout << atom.getName() << "[" << value << "] ";
+                ++i;
+                ++it;
+            }
+            cout << endl;
+        }
+        else if(__options__.octaveTermOut)
+            cerr << buff;
+    }
+    pclose(f);
+    remove(tmpFile);
+}
+
+void Program::printBilevelProgram(ostream& out) {
+    /*
+    out << "do_braindead_shortcircuit_evaluation (1);\n";
+    out << "warning(\"off\", \"Octave:possible-matlab-short-circuit-operator\");\n";
+    out << "addpath(genpath('/home/malvi/workspaces/c/fasp/yalmip'));\n";
+
+    out << "function varargout = ismembc (varargin)\n";
+    out << "    varargout = cell (nargout, 1);\n";
+    out << "    [varargout{:}] = ismember (varargin{:});\n";
+    out << "endfunction\n";
+    */
+
+    out << "n = " << atomList.size() << ";\n";
+
+    out << "i = sdpvar(1,n,'full');\n";
+    out << "o = sdpvar(1,n,'full');\n";
+
+    out << "OO = sum(o - i);\n";
+    stringstream lb, ub;
+    lb.precision(15);
+    ub.precision(15);
+//    if(__options__.bilevelProgram == Options::BILEVEL_PROGRAM_SIMPLE) {
+//        lb << 0;
+//        ub << 1;
+//    }
+//    else {
+//        assert(__options__.bilevelProgram == Options::BILEVEL_PROGRAM_ENHANCED);
+
+        assert(nextIdInBilevelProgram == 1);
+        lb << "[";
+        for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ++it) {
+            Atom atom(*it);
+            atom.getColumnIndexInBilevelProgram(nextIdInBilevelProgram);
+            lb << atom.getLowerBound() << " ";
+        }
+        lb << "]";
+
+        ub << "[";
+        for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ++it) {
+            Atom atom(*it);
+            ub << atom.getUpperBound() << " ";
+        }
+        ub << "]";
+//    }
+    out << "CO = [o >= " << lb.str() << ", o <= " << ub.str() << "];\n";
+
+    out << "OI = sum(i);\n";
+    out << "CI = [ \n";
+    for(list<Rule*>::iterator it = rules.begin(); it != rules.end(); ++it) {
+        Rule* rule = *it;
+        rule->printBilevelProgram(out, nextIdInBilevelProgram);
+    }
+    out << "  i >= " << lb.str() << ",\n  i <= o ];\n";
+
+    out << "solvebilevel(CO,OO,CI,OI,i);\n";
+    out << "disp(\"SOLUTION\");\n";
+    out << "od = double(o);\n";
+    out << "for x = od, disp(x); end;\n";
+
+    /*
+    for(list<Atom::Data*>::const_iterator it = atomList.begin(); it != atomList.end(); ++it) {
+        Atom atom(*it);
+        cerr << atom.data->columnInBilevelProgram << ":" << atom.getName() << " ";
+    }
+    cerr << endl;
+    */
+}
+

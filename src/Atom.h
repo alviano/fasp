@@ -29,6 +29,7 @@ public:
 	
     bool isUnset() const { return data == NULL; }
     bool isConstant() const;
+    bool isProcessedConstant() const;
     
     int getId() const;
     const string& getName() const;
@@ -48,7 +49,10 @@ public:
     bool updateSourcePointer(double value, Rule* sourcePointer);
     bool updateUpperBound(double value);
     bool initConstant();
+    void parseBoundsForConstant();
     bool initSourcePointer();
+    bool findSourcePointer();
+    bool checkConstant() const;
 
     bool isInconsistent() const;
 
@@ -58,6 +62,8 @@ public:
     int getColumnIndexInLinearProgram(glp_prob* linearProgram);
     int getColumnIndexInLinearProgram() const;
     void addToRowBound(int row, double shift);
+
+    int getColumnIndexInBilevelProgram(int& nextIdInBilevelProgram);
 
     inline bool belongsTo(const Component* component) const { assert(data != NULL); return data->component == component; }
 
@@ -79,6 +85,8 @@ private:
 
         int columnInLinearProgram;
 
+        int columnInBilevelProgram;
+
         Rule* sourcePointer;
     };
     
@@ -86,6 +94,7 @@ private:
         
     Atom(Data* data);
     void setBoundsForLinearProgram();
+    double parseConstantDegree() const;
 };
 
 const Rule* Atom::getSourcePointer() const {

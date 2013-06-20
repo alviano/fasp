@@ -27,7 +27,7 @@ public:
     ~Component();
 
     int size() const { return _size; }
-    bool isRecursive() const { return recursive; }
+    bool isRecursive() const { return true;/*recursive;*/ }
     bool hasOddCycles() const;
     bool hasChangedBounds() const { return changedBounds; }
 
@@ -54,6 +54,8 @@ private:
     bool recursive;
     glp_prob* linearProgram;
     bool changedBounds;
+
+    string matrixToString(int size, int row[], int col[], double val[]) const;
 };
 
 #endif /* COMPONENT_H_ */

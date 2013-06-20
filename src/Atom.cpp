@@ -12,7 +12,7 @@
 using namespace std;
 
 ostream& operator<<(ostream& out, const Atom& atom) {
-    return out << atom.getName();
+    return out << (atom.isProcessedConstant() ? atom.getName().c_str() + 1 : atom.getName());
 }
 
 Atom::Atom() : data(NULL)
@@ -35,6 +35,11 @@ Atom::~Atom()
 bool Atom::isConstant() const {
     assert(data != NULL);
     return data->name[0] == '#';
+}
+
+bool Atom::isProcessedConstant() const {
+    assert(data != NULL);
+    return data->name[1] == '#';
 }
 
 int Atom::getId() const {
@@ -81,6 +86,7 @@ void Atom::set(Program& program, int id) {
     this->data->upperBound = 0;
 
     this->data->columnInLinearProgram = 0;
+    this->data->columnInBilevelProgram = 0;
 }
 
 void Atom::setName(const string& value) {
@@ -96,6 +102,7 @@ void Atom::setComponent(Component* value) {
 void Atom::addHeadOccurrence(Rule* rule) {
     assert(rule != NULL);
     assert(data != NULL);
+    assert(rule->getBodySize() > 0);
     data->headOccurrences.push_back(rule);
 }
 
@@ -118,7 +125,7 @@ bool Atom::addNegativeBodyOccurrence(Rule* rule) {
 }
 
 bool Atom::isInconsistent() const {
-    return data->upperBound < data->lowerBound;
+    return data->upperBound - data->lowerBound < -EPSILON;
 }
 
 bool Atom::updateLowerBound(double value) {
@@ -126,6 +133,12 @@ bool Atom::updateLowerBound(double value) {
     assert(0 <= value && value <= 1);
     if(value > data->lowerBound) {
         trace(std, 4, "Updating lower bound of %s from %g to %g\n", getName().c_str(), data->lowerBound, value);
+
+        if(isProcessedConstant()) {
+            trace(std, 4, " Skip constant");
+            return true;
+        }
+
         data->lowerBound = value;
         if(isInconsistent())
             return false;
@@ -147,6 +160,12 @@ bool Atom::updateSourcePointer(double value, Rule* sourcePointer) {
     assert(0 <= value && value <= 1);
     if(value > data->upperBound) {
         trace(std, 4, "Updating upper bound of %s from %g to %g\n", getName().c_str(), data->upperBound, value);
+
+        if(isProcessedConstant()) {
+            trace(std, 4, " Skip constant");
+            return true;
+        }
+
         data->upperBound = value;
         data->sourcePointer = sourcePointer;
         if(isInconsistent())
@@ -165,6 +184,7 @@ bool Atom::updateUpperBound(double value) {
     assert(data != NULL);
     assert(0 <= value && value <= 1);
     if(value < data->upperBound) {
+        assert(!isProcessedConstant());
         trace(std, 4, "Updating upper bound of %s from %g to %g\n", getName().c_str(), data->upperBound, value);
         data->upperBound = value;
         if(isInconsistent())
@@ -179,26 +199,42 @@ bool Atom::updateUpperBound(double value) {
             if(!(**it).onIncreaseLowerBound())
                 return false;
 
-        double max = 0.0;
-        Rule* sourcePointer = NULL;
-        for(list<Rule*>::iterator it = data->headOccurrences.begin(); it != data->headOccurrences.end(); ++it) {
-            Rule* rule = *it;
-            double ub = rule->computeBodyUpperBound();
-            if(ub > max) {
-                max = ub;
-                sourcePointer = rule;
-            }
+        if(!isConstant()) {
+            findSourcePointer();
         }
-        if(!updateSourcePointer(max, sourcePointer))
-            return false;
     }
     return true;
 }
 
 bool Atom::initConstant() {
-    assert(getName()[0] == '#');
+    assert(isConstant());
+    assert(!isProcessedConstant());
 
-    double degree;
+    double degree = parseConstantDegree();
+    if(getLowerBound() > degree || getUpperBound() > degree || !updateSourcePointer(degree, NULL) || !updateLowerBound(degree))
+        return false;
+
+    // mark as processed constant
+    setName(string("#") + getName());
+
+    for(list<Rule*>::iterator rule = data->positiveBodyOccurrences.begin(); rule != data->positiveBodyOccurrences.end(); ++rule)
+        (**rule).addToRowBound(-getLowerBound());
+    for(list<Rule*>::iterator rule = data->negativeBodyOccurrences.begin(); rule != data->negativeBodyOccurrences.end(); ++rule)
+        (**rule).addToRowBound(getLowerBound());
+    return true;
+}
+
+void Atom::parseBoundsForConstant() {
+    assert(isConstant());
+
+    data->lowerBound = data->upperBound = parseConstantDegree();
+}
+
+double Atom::parseConstantDegree() const {
+    assert(isConstant());
+    assert(!isProcessedConstant());
+
+    double degree = -1;
     stringstream ss(getName().c_str()+1);
     ss >> degree;
     if(!ss.eof()) {
@@ -209,24 +245,17 @@ bool Atom::initConstant() {
         ss >> denominator;
         assert(denominator > 0);
         degree /= denominator;
+        assert(ss.eof());
     }
     assert(0 <= degree && degree <= 1);
-
-    if(!updateSourcePointer(1, NULL) || !updateUpperBound(degree) || !updateLowerBound(getUpperBound()))
-        return false;
-
-    for(list<Rule*>::iterator rule = data->positiveBodyOccurrences.begin(); rule != data->positiveBodyOccurrences.end(); ++rule)
-        (**rule).addToRowBound(-getLowerBound());
-    for(list<Rule*>::iterator rule = data->negativeBodyOccurrences.begin(); rule != data->negativeBodyOccurrences.end(); ++rule)
-        (**rule).addToRowBound(getLowerBound());
-    return true;
+    return degree;
 }
 
 bool Atom::initSourcePointer() {
     assert(data != NULL);
     if(data->sourcePointer == NULL) {
-        assert(data->upperBound == 0);
         trace(std, 3, "Atom %s has no source pointers\n", getName().c_str());
+        assert(data->upperBound == 0);
 
         /*for(list<Rule*>::iterator it = data->positiveBodyOccurrences.begin(); it != data->positiveBodyOccurrences.end(); ++it)
             if(!(**it).onDecreaseUpperBound())
@@ -236,6 +265,32 @@ bool Atom::initSourcePointer() {
                 return false;
     }
 
+    return true;
+}
+
+bool Atom::findSourcePointer() {
+    double max = 0.0;
+    Rule* sourcePointer = NULL;
+    for(list<Rule*>::iterator it = data->headOccurrences.begin(); it != data->headOccurrences.end(); ++it) {
+        Rule* rule = *it;
+        double ub = rule->computeBodyUpperBound();
+        if(ub > max) {
+            max = ub;
+            sourcePointer = rule;
+        }
+    }
+    return !updateSourcePointer(max, sourcePointer);
+}
+
+bool Atom::checkConstant() const {
+    assert(isConstant());
+    assert(isProcessedConstant());
+    for(list<Rule*>::const_iterator it = data->headOccurrences.begin(); it != data->headOccurrences.end(); ++it) {
+        const Rule* rule = *it;
+        double ub = rule->computeBodyLowerBound();
+        if(ub > getLowerBound())
+            return false;
+    }
     return true;
 }
 
@@ -274,4 +329,11 @@ void Atom::addToRowBound(int row, double shift) {
     assert(data != NULL);
     if(data->component != NULL)
         data->component->addToRowBound(row, shift);
+}
+
+int Atom::getColumnIndexInBilevelProgram(int& nextIdInBilevelProgram) {
+    assert(data != NULL);
+    if(data->columnInBilevelProgram == 0)
+        data->columnInBilevelProgram = nextIdInBilevelProgram++;
+    return data->columnInBilevelProgram;
 }

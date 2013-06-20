@@ -28,7 +28,12 @@ void DependencyGraph::addEdge(int a, int b) {
 int DependencyGraph::computeSCC(vector<int>*& component) {
     assert(component == NULL);
 
+    // DISABLED
     component = new vector<int>(boost::num_vertices(graph));
+    for(unsigned i = 0; i < boost::num_vertices(graph); i++)
+        (*component)[i] = 0;
+    return 1;
+
     vector<int> discover_time(boost::num_vertices(graph));
     vector<boost::default_color_type> color(boost::num_vertices(graph));
     vector<boost::graph_traits<boost::adjacency_list<> >::vertex_descriptor> root(boost::num_vertices(graph));

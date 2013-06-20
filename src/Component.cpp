@@ -12,6 +12,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <set>
+#include <sstream>
 #include <unordered_set>
 
 ostream& operator<<(ostream& out, const Component& component) {
@@ -44,6 +46,10 @@ void Component::add(Atom atom) {
 }
 
 void Component::setBounds(Atom atom) {
+    trace(std, 5, "Setting bounds for linear program. Atom %s, from [%g,%g] to [%g,%g]\n", atom.getName().c_str(),
+            glp_get_col_lb(linearProgram, atom.getColumnIndexInLinearProgram(linearProgram)),
+            glp_get_col_ub(linearProgram, atom.getColumnIndexInLinearProgram(linearProgram)),
+            atom.getLowerBound(), atom.getUpperBound());
     glp_set_col_bnds(linearProgram, atom.getColumnIndexInLinearProgram(linearProgram), atom.getLowerBound() != atom.getUpperBound() ? GLP_DB : GLP_FX, atom.getLowerBound(), atom.getUpperBound());
     changedBounds = true;
 }
@@ -69,6 +75,7 @@ void Component::initLinearProgram() {
     for(iterator it = begin(); it != end(); ++it)
         it->buildLinearProgram(linearProgram, matrixRow, matrixCol, matrixVal);
 
+    //trace(std, 10, matrixToString(matrixRow.size(), matrixRow.data(), matrixCol.data(), matrixVal.data()).c_str());
     glp_load_matrix(linearProgram, matrixRow.size() - 1, matrixRow.data(), matrixCol.data(), matrixVal.data());
 }
 
@@ -111,6 +118,7 @@ bool Component::updateLowerBoundsByLinearProgram() {
 }
 
 bool Component::hasOddCycles() const {
+    return true;
     assert(isRecursive());
 
     Atom a = front();
@@ -143,4 +151,22 @@ bool Component::hasOddCycles() const {
         }
     }
     return false;
+}
+
+string Component::matrixToString(int size, int row[], int col[], double val[]) const {
+    stringstream ss;
+    for(const_iterator it = begin(); it != end(); it++) {
+        ss << it->getName() << " => id = " << it->getColumnIndexInLinearProgram()
+                << ", lb = " << glp_get_col_lb(linearProgram, it->getColumnIndexInLinearProgram())
+                << ", ub = " << glp_get_col_ub(linearProgram, it->getColumnIndexInLinearProgram()) << endl;
+    }
+    set<int> rows;
+    for(int i = 1; i < size; i++) {
+        ss << "m(" << row[i] << "," << col[i] << ") = " << val[i] << endl;
+        rows.insert(row[i]);
+    }
+    for(set<int>::const_iterator it = rows.begin(); it != rows.end(); it++)
+        ss << "Row " << *it << ": lb = " << glp_get_row_lb(linearProgram, *it)
+            << ", ub = " << glp_get_row_ub(linearProgram, *it) << endl;
+    return ss.str();
 }

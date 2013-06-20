@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include "Program.h"
+#include "options.h"
+#include <cmath>
 
 ostream& operator<<(ostream& out, const Rule& rule) {
     out << rule.getHead();
@@ -22,10 +24,14 @@ Rule::Rule(Program& _program, const Atom& _head, int _bodySize, int _negativeLit
 {
     assert(negativeLiterals >= 0);
     assert(bodySize >= negativeLiterals);
+    if(bodySize == 0) {
+        bodySize = negativeLiterals = 1;
+        body = new Atom[bodySize];
+        setBodyAtom(0, program.getFalseAtom());
+    }
+    else
+        body = new Atom[bodySize];
     head.addHeadOccurrence(this);
-    body = new Atom[bodySize];
-    if(bodySize == 0)
-        head.updateLowerBound(1);
 }
 
 Rule::~Rule()
@@ -42,7 +48,6 @@ void Rule::setBodyAtom(int idx, const Atom& value) {
         body[idx].addNegativeBodyOccurrence(this);
     else
         body[idx].addPositiveBodyOccurrence(this);
-    program.addDependency(head, body[idx]);
 }
 
 double Rule::computeBodyLowerBound() const {
@@ -128,4 +133,30 @@ void Rule::buildLinearProgram(glp_prob* linearProgram, vector<int>& matrixRow, v
 
 void Rule::addToRowBound(double shift) {
     head.addToRowBound(rowInLinearProgram, shift);
+}
+
+void Rule::printBilevelProgram(ostream& out, int& nextIdInBilevelProgram) {
+    if(!head.isConstant() && fabs(head.getLowerBound() - head.getUpperBound()) < EPSILON)
+        return;
+
+    printBilevelProgram(out, nextIdInBilevelProgram, head, false);
+    out << " >=";
+    if(bodySize > 0) {
+        printBilevelProgram(out, nextIdInBilevelProgram, body[0], 0 < negativeLiterals);
+        for(int i = 1; i < bodySize; ++i)
+            printBilevelProgram(out, nextIdInBilevelProgram, body[i], i < negativeLiterals);
+        if(bodySize > 1)
+            out << " - " << (bodySize-1);
+        out << "," << endl;
+    }
+    else
+        out << "1," << endl;
+}
+
+void Rule::printBilevelProgram(ostream& out, int& nextIdInBilevelProgram, Atom& atom, bool negative) {
+    out << (negative ? " + 1 - " : " + ");
+    if(atom.isConstant() || fabs(atom.getLowerBound() - atom.getUpperBound()) < EPSILON)
+        out << atom.getLowerBound();
+    else
+        out << (negative ? "o(" : "i(") << atom.getColumnIndexInBilevelProgram(nextIdInBilevelProgram) << ")";
 }
