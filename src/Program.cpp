@@ -325,7 +325,7 @@ void Program::printBilevelProgram(ostream& out) {
     out << "  i >= " << lb.str() << ",\n  i <= o ];\n";
 
     out << "solvebilevel(CO,OO,CI,OI,i);\n";
-    out << "if(double(OO) == 0)\n";
+    out << "if(double(OO) <= " << EPSILON << ")\n";
     out << "    disp(\"SOLUTION\");\n";
     out << "    od = double(o);\n";
     out << "    for x = od, disp(x); end;\n";
