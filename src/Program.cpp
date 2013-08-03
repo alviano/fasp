@@ -267,7 +267,7 @@ void Program::computeFuzzyAnswerSet() {
             cerr << buff;
     }
     pclose(f);
-    //remove(tmpFile);
+    remove(tmpFile);
 }
 
 void Program::printBilevelProgram(ostream& out) {
