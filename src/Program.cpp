@@ -260,11 +260,14 @@ void Program::computeFuzzyAnswerSet() {
             }
             cout << endl;
         }
+        else if(strcmp(buff, "INFEASIBLE\n") == 0) {
+            onInconsistency();
+        }
         else if(__options__.octaveTermOut)
             cerr << buff;
     }
     pclose(f);
-    remove(tmpFile);
+    //remove(tmpFile);
 }
 
 void Program::printBilevelProgram(ostream& out) {
@@ -322,9 +325,13 @@ void Program::printBilevelProgram(ostream& out) {
     out << "  i >= " << lb.str() << ",\n  i <= o ];\n";
 
     out << "solvebilevel(CO,OO,CI,OI,i);\n";
-    out << "disp(\"SOLUTION\");\n";
-    out << "od = double(o);\n";
-    out << "for x = od, disp(x); end;\n";
+    out << "if(double(OO) == 0)\n";
+    out << "    disp(\"SOLUTION\");\n";
+    out << "    od = double(o);\n";
+    out << "    for x = od, disp(x); end;\n";
+    out << "else\n";
+    out << "    disp(\"INFEASIBLE\");\n";
+    out << "endif\n";
 
     /*
     for(list<Atom::Data*>::const_iterator it = atomList.begin(); it != atomList.end(); ++it) {
