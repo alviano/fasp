@@ -211,7 +211,7 @@ bool Atom::initConstant() {
     assert(!isProcessedConstant());
 
     double degree = parseConstantDegree();
-    if(getLowerBound() > degree || getUpperBound() > degree || !updateSourcePointer(degree, NULL) || !updateLowerBound(degree))
+    if(getLowerBound() > degree /*|| getUpperBound() > degree*/ || !updateSourcePointer(degree, NULL) || !updateLowerBound(degree))
         return false;
 
     // mark as processed constant
