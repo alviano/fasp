@@ -105,7 +105,15 @@ void Program::initInterpretation() {
             atomList.erase(curr);
         }
     }
-
+    for(list<Atom::Data*>::iterator it = constants.begin(); it != constants.end(); ++it) {
+        Atom atom(*it);
+        trace(std, 3, "Found constant %s\n", atom.getName().c_str());
+        if(!atom.initConstantLowerBound()) {
+            onInconsistency();
+            return;
+        }
+    }
+    
     /*
     trace(std, 3, "Resetting upper bounds\n");
     for(list<Atom::Data*>::iterator it = constants.begin(); it != constants.end(); ++it)

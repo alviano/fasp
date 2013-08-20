@@ -187,10 +187,6 @@ bool Atom::updateUpperBound(double value) {
         assert(!isProcessedConstant());
         trace(std, 4, "Updating upper bound of %s from %g to %g\n", getName().c_str(), data->upperBound, value);
         data->upperBound = value;
-        if(isInconsistent())
-            return false;
-
-        setBoundsForLinearProgram();
 
         for(list<Rule*>::iterator it = data->positiveBodyOccurrences.begin(); it != data->positiveBodyOccurrences.end(); ++it)
             if(!(**it).onDecreaseUpperBound())
@@ -200,7 +196,10 @@ bool Atom::updateUpperBound(double value) {
                 return false;
 
         if(!isConstant()) {
-            findSourcePointer();
+            if(!findSourcePointer())
+                return false;
+            assert(!isInconsistent());
+            setBoundsForLinearProgram();
         }
     }
     return true;
@@ -211,7 +210,17 @@ bool Atom::initConstant() {
     assert(!isProcessedConstant());
 
     double degree = parseConstantDegree();
-    if(getLowerBound() > degree /*|| getUpperBound() > degree*/ || !updateSourcePointer(degree, NULL) || !updateLowerBound(degree))
+    if(getLowerBound() > degree /*|| getUpperBound() > degree*/ || !updateSourcePointer(degree, NULL) /*|| !updateLowerBound(degree)*/)
+        return false;
+
+    return true;
+}
+
+bool Atom::initConstantLowerBound() {
+    assert(isConstant());
+    assert(!isProcessedConstant());
+
+    if(getLowerBound() > getUpperBound() /*|| getUpperBound() > degree*/ /*|| !updateSourcePointer(degree, NULL)*/ || !updateLowerBound(getUpperBound()))
         return false;
 
     // mark as processed constant
@@ -221,6 +230,7 @@ bool Atom::initConstant() {
         (**rule).addToRowBound(-getLowerBound());
     for(list<Rule*>::iterator rule = data->negativeBodyOccurrences.begin(); rule != data->negativeBodyOccurrences.end(); ++rule)
         (**rule).addToRowBound(getLowerBound());
+
     return true;
 }
 
@@ -279,7 +289,7 @@ bool Atom::findSourcePointer() {
             sourcePointer = rule;
         }
     }
-    return !updateSourcePointer(max, sourcePointer);
+    return updateSourcePointer(max, sourcePointer);
 }
 
 bool Atom::checkConstant() const {
