@@ -1,0 +1,12 @@
+do_braindead_shortcircuit_evaluation (1);
+
+warning("off", "Octave:possible-matlab-short-circuit-operator");
+warning ("off", "Octave:shadowed-function");
+
+addpath(genpath('PATH TO YALMIP'));
+
+function varargout = ismembc (varargin)
+    varargout = cell (nargout, 1);
+    [varargout{:}] = ismember (varargin{:});
+endfunction
+

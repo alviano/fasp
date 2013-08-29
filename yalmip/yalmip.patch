@@ -1,0 +1,84 @@
+diff -uNr yalmip-2013-04-05/extras/@constraint/getlist.m yalmip-octave/extras/@constraint/getlist.m
+--- yalmip-2013-04-05/extras/@constraint/getlist.m	2013-04-05 13:09:04.000000000 +0200
++++ yalmip-octave/extras/@constraint/getlist.m	2013-05-27 17:04:34.208231408 +0200
+@@ -4,8 +4,8 @@
+ % Author Johan Löfberg
+ % $Id: getlist.m,v 1.5 2009-04-29 07:48:12 joloef Exp $
+ 
+-superiorto('sdpvar');
+-superiorto('double');
++%superiorto('sdpvar');
++%superiorto('double');
+ 
+ F = X.Evaluated;
+ strict = X.strict;
+diff -uNr yalmip-2013-04-05/solvers/callglpk.m yalmip-octave/solvers/callglpk.m
+--- yalmip-2013-04-05/solvers/callglpk.m	2013-04-05 13:09:06.000000000 +0200
++++ yalmip-octave/solvers/callglpk.m	2013-05-31 15:21:40.028093363 +0200
+@@ -72,7 +72,8 @@
+ 
+ % Call mex-interface
+ solvertime = clock; 
+-[x,FMIN,STATUS,LAMBDA_EXTRA] = glpkmex(SENSE,C,A,B,CTYPE,LB,UB,VARTYPE,options.glpk,options.glpk.lpsolver,options.glpk.save);
++[x,FMIN,STATUS,LAMBDA_EXTRA] = glpk(C,A,B,LB,UB,CTYPE,VARTYPE,SENSE,options.glpk);
++%glpkmex(SENSE,C,A,B,CTYPE,LB,UB,VARTYPE,options.glpk,options.glpk.lpsolver,options.glpk.save);
+ if interfacedata.getsolvertime solvertime = etime(clock,solvertime);else solvertime = 0;end
+ problem = 0;
+ 
+@@ -154,4 +155,4 @@
+ output.problem     = problem;
+ output.solverinput = solverinput;
+ output.solveroutput= solveroutput;
+-output.solvertime  = solvertime;
+\ No newline at end of file
++output.solvertime  = solvertime;
+diff -uNr yalmip-2013-04-05/solvers/definesolvers.m yalmip-octave/solvers/definesolvers.m
+--- yalmip-2013-04-05/solvers/definesolvers.m	2013-04-05 13:09:06.000000000 +0200
++++ yalmip-octave/solvers/definesolvers.m	2013-05-31 15:13:46.328107360 +0200
+@@ -213,7 +213,7 @@
+ solver(i) = lpsolver;
+ solver(i).tag     = 'GLPK';
+ solver(i).version = 'GLPKMEX';
+-solver(i).checkfor= {'glpkmex.m'};
++solver(i).checkfor= {'glpk.m'};
+ solver(i).call    = 'callglpk';
+ solver(i).constraint.integer = 1;
+ solver(i).constraint.binary = 1;
+@@ -1297,4 +1297,4 @@
+ solver(i).checkfor= {'lsqlin.m'};
+ solver(i).call    = 'calllsqlin';
+ solver(i).constraint.inequalities.secondordercone = 1;
+-i = i+1;
+\ No newline at end of file
++i = i+1;
+diff -uNr yalmip-2013-04-05/yalmiptest.m yalmip-octave/yalmiptest.m
+--- yalmip-2013-04-05/yalmiptest.m	2013-04-05 13:09:06.000000000 +0200
++++ yalmip-octave/yalmiptest.m	2013-05-27 16:24:11.088335320 +0200
+@@ -35,12 +35,12 @@
+     return
+ end
+ 
+-detected = which('yalmip.m','-all');
+-if length(detected)>1
+-    disp('You seem to have multiple installations of YALMIP in your path. Please correct this...');
+-    detected
+-    return
+-end
++%detected = which('yalmip.m','-all');
++%if length(detected)>1
++%    disp('You seem to have multiple installations of YALMIP in your path. Please correct this...');
++%    detected
++%    return
++%end
+ 
+ donttest = 0;
+ if (nargin==1) & isa(prefered_solver,'char') & strcmp(prefered_solver,'test')
+@@ -354,7 +354,7 @@
+     assert(nnz(clean([res res]'*[res res]-res'*res,1e-8))==0)
+     assert(isreal(clean(res'*res,1e-8)))
+     
+-    sdpvar x(1,1,'full','complex');
++    x = sdpvar(1,1,'full','complex');
+     assert(isreal(x*x'))
+     
+ %     x = sdpvar(4,1);
