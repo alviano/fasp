@@ -1,4 +1,4 @@
-Preliminaries steps
+Preliminary steps
 ====================
 
 Patches for parsing numeric constants in gringo are in the gringo directory.
