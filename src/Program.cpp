@@ -87,8 +87,8 @@ void Program::initInterpretation() {
     if(typeid(*tnorm) == typeid(LukasiewiczTnorm))
         computeSCC();
 
-    if(hasTraceLevel(std, 5))
-        printSCC(cerr);
+    //if(hasTraceLevel(std, 5))
+    //    printSCC(cerr);
 
     trace(std, 2, "Processing constants\n");
     for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ) {
@@ -96,19 +96,15 @@ void Program::initInterpretation() {
         Atom atom(*curr);
         if(atom.isConstant()) {
             trace(std, 3, "Found constant %s\n", atom.getName().c_str());
-            if(!atom.initConstant()) {
-                onInconsistency();
-                return;
-            }
-            atom.data->sourcePointer = NULL;
+            atom.initConstant();
             constants.push_back(*curr);
             atomList.erase(curr);
         }
     }
     for(list<Atom::Data*>::iterator it = constants.begin(); it != constants.end(); ++it) {
         Atom atom(*it);
-        trace(std, 3, "Found constant %s\n", atom.getName().c_str());
-        if(!atom.initConstantLowerBound()) {
+        trace(std, 3, "Processing constant %s\n", atom.getName().c_str());
+        if(!atom.processConstant()) {
             onInconsistency();
             return;
         }
@@ -138,7 +134,6 @@ void Program::initInterpretation() {
             return;
         }
     }
-    */
 
     for(list<Atom::Data*>::iterator it = constants.begin(); it != constants.end(); ++it) {
         Atom atom(*it);
@@ -147,6 +142,7 @@ void Program::initInterpretation() {
             return;
         }
     }
+    */
 
     if(__options__.mode != Options::WELL_FOUNDED) {
         trace(std, 2, "Processing inequalities\n");

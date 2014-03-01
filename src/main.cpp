@@ -18,9 +18,12 @@ int main(int argc, char** argv) {
     else
         program.setNaiveBounds();
 
+    if(program.isInchoerent())
+       return 0;
+
     if(__options__.mode == Options::WELL_FOUNDED || __options__.mode == __options__.ALL_APPROXIMATIONS)
         program.printInterpretation(cout);
-    else if(!program.isInchoerent())
+    else
         program.computeFuzzyAnswerSet();
 
     return 0;

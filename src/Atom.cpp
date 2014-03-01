@@ -134,10 +134,8 @@ bool Atom::updateLowerBound(double value) {
     if(value > data->lowerBound) {
         trace(std, 4, "Updating lower bound of %s from %g to %g\n", getName().c_str(), data->lowerBound, value);
 
-        if(isProcessedConstant()) {
-            trace(std, 4, " Skip constant");
-            return true;
-        }
+        if(isProcessedConstant())
+            return false;
 
         data->lowerBound = value;
         if(isInconsistent())
@@ -162,8 +160,9 @@ bool Atom::updateSourcePointer(double value, Rule* sourcePointer) {
         trace(std, 4, "Updating upper bound of %s from %g to %g\n", getName().c_str(), data->upperBound, value);
 
         if(isProcessedConstant()) {
-            trace(std, 4, " Skip constant");
+            trace(std, 4, " Skip constant\n");
             return true;
+            data->upperBound = value;
         }
 
         data->upperBound = value;
@@ -205,26 +204,29 @@ bool Atom::updateUpperBound(double value) {
     return true;
 }
 
-bool Atom::initConstant() {
+void Atom::initConstant() {
     assert(isConstant());
     assert(!isProcessedConstant());
 
-    double degree = parseConstantDegree();
-    if(getLowerBound() > degree /*|| getUpperBound() > degree*/ || !updateSourcePointer(degree, NULL) /*|| !updateLowerBound(degree)*/)
-        return false;
-
-    return true;
-}
-
-bool Atom::initConstantLowerBound() {
-    assert(isConstant());
-    assert(!isProcessedConstant());
-
-    if(getLowerBound() > getUpperBound() /*|| getUpperBound() > degree*/ /*|| !updateSourcePointer(degree, NULL)*/ || !updateLowerBound(getUpperBound()))
-        return false;
+    data->lowerBound = data->upperBound = parseConstantDegree();
 
     // mark as processed constant
     setName(string("#") + getName());
+}
+
+bool Atom::processConstant() {
+    assert(isConstant());
+    assert(isProcessedConstant());
+
+    for(list<Rule*>::iterator it = data->positiveBodyOccurrences.begin(); it != data->positiveBodyOccurrences.end(); ++it)
+        if(!(**it).onIncreaseUpperBound())
+            return false;
+    for(list<Rule*>::iterator it = data->positiveBodyOccurrences.begin(); it != data->positiveBodyOccurrences.end(); ++it)
+        if(!(**it).onIncreaseLowerBound())
+            return false;
+    for(list<Rule*>::iterator it = data->negativeBodyOccurrences.begin(); it != data->negativeBodyOccurrences.end(); ++it)
+        if(!(**it).onDecreaseUpperBound())
+            return false;
 
     for(list<Rule*>::iterator rule = data->positiveBodyOccurrences.begin(); rule != data->positiveBodyOccurrences.end(); ++rule)
         (**rule).addToRowBound(-getLowerBound());

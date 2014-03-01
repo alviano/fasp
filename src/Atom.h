@@ -48,8 +48,8 @@ public:
     bool updateLowerBound(double value);
     bool updateSourcePointer(double value, Rule* sourcePointer);
     bool updateUpperBound(double value);
-    bool initConstant();
-    bool initConstantLowerBound();
+    void initConstant();
+    bool processConstant();
     void parseBoundsForConstant();
     bool initSourcePointer();
     bool findSourcePointer();
