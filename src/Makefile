@@ -1,5 +1,5 @@
 BINARY=fasp
-GCC=g++-4.7
+GCC=g++
 CXX=$(GCC)
 CXXFLAGS=-Wall -std=c++11 -g3 -O0
 LINK=$(GCC)
