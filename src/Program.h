@@ -39,11 +39,22 @@ public:
     string toString() const;
 
     void computeFuzzyAnswerSet();
+    bool computeFuzzyAnswerSet2();
     void printBilevelProgram(ostream& out);
 
     bool isInchoerent() const { return incoherent; }
 
+    inline void addAssignment(Atom atom, double bound) { assignments.push_back(pair<Atom, double>(atom, bound)); }
+
+    bool propagate();
+
+    static void init(const Tnorm& tnorm);
+    static void free();
+    static inline Program& getInstance() { assert(instance != NULL); return *instance; }
+
 private:
+    static Program* instance;
+    
     list<Rule*> rules;
     unordered_map<int, Atom::Data*> atoms;
     list<Atom::Data*> atomList;
@@ -53,6 +64,9 @@ private:
     list<Component*> components;
     int nextIdInBilevelProgram;
     bool incoherent;
+    
+    vector<pair<Atom, double> > assignments;
+    unsigned processed;
 
     void printSCC(ostream& out) const;
     void computeSCC();

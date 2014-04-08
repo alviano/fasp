@@ -15,7 +15,19 @@ ostream& operator<<(ostream& out, const Program& program) {
     return out;
 }
 
-Program::Program(const Tnorm& _tnorm) : tnorm(_tnorm.clone()), nextIdInBilevelProgram(1)
+Program* Program::instance = NULL;
+
+void Program::init(const Tnorm& tnorm) {
+    assert(instance == NULL);
+    instance = new Program(tnorm);
+}
+
+void Program::free() {
+    assert(instance != NULL);
+    delete instance;
+}
+
+Program::Program(const Tnorm& _tnorm) : tnorm(_tnorm.clone()), nextIdInBilevelProgram(1), processed(0)
 {
     getFalseAtom().setName("#0");
 }
@@ -110,6 +122,9 @@ void Program::initInterpretation() {
         }
     }
     
+    if(!propagate())
+        onInconsistency();
+    
     /*
     trace(std, 3, "Resetting upper bounds\n");
     for(list<Atom::Data*>::iterator it = constants.begin(); it != constants.end(); ++it)
@@ -144,23 +159,23 @@ void Program::initInterpretation() {
     }
     */
 
-    if(__options__.mode != Options::WELL_FOUNDED) {
-        trace(std, 2, "Processing inequalities\n");
-        bool stop = false;
-        while(!stop) {
-            stop = true;
-            for(list<Component*>::iterator it = components.begin(); it != components.end(); ++it) {
-                Component& component = **it;
-                if(!component.hasChangedBounds())
-                    continue;
-                stop = false;
-                if(!(**it).updateLowerBoundsByLinearProgram()) {
-                    onInconsistency();
-                    return;
-                }
-            }
-        }
-    }
+//    if(__options__.mode != Options::WELL_FOUNDED) {
+//        trace(std, 2, "Processing inequalities\n");
+//        bool stop = false;
+//        while(!stop) {
+//            stop = true;
+//            for(list<Component*>::iterator it = components.begin(); it != components.end(); ++it) {
+//                Component& component = **it;
+//                if(!component.hasChangedBounds())
+//                    continue;
+//                stop = false;
+//                if(!(**it).updateLowerBoundsByLinearProgram()) {
+//                    onInconsistency();
+//                    return;
+//                }
+//            }
+//        }
+//    }
 }
 
 void Program::setNaiveBounds() {
@@ -274,6 +289,41 @@ void Program::computeFuzzyAnswerSet() {
     remove(tmpFile);
 }
 
+bool Program::computeFuzzyAnswerSet2() {
+    while(true) {
+        double max = 0;
+        list<Atom::Data*>::iterator maxIt;
+        for(list<Atom::Data*>::iterator it = atomList.begin(); it != atomList.end(); ++it) {
+            Atom atom(*it);
+            double diff = atom.getBoundsDifference();
+            if(diff > max) {
+                max = diff;
+                maxIt = it;
+            }
+        }
+        
+        if(max == 0)
+            return true;
+            
+        unsigned unroll = processed;
+        if(Atom(*maxIt).split())
+            return true;
+        
+        trace(std, 2, "Found inconsistency\n");
+        while(unroll < assignments.size()) {
+            if(assignments.back().second < 10.0)
+                assignments.back().first.unrollLowerBound(assignments.back().second);
+            else
+                assignments.back().first.unrollUpperBound(assignments.back().second - 10);
+            assignments.pop_back();
+        }
+        processed = unroll;
+        if(!Atom(*maxIt).split2())
+            return false;
+    }
+    return true;
+}
+
 void Program::printBilevelProgram(ostream& out) {
     /*
     out << "do_braindead_shortcircuit_evaluation (1);\n";
@@ -346,3 +396,19 @@ void Program::printBilevelProgram(ostream& out) {
     */
 }
 
+bool Program::propagate() {
+    while(processed < assignments.size()) {
+        pair<Atom, double> next = assignments[processed++];
+        if(next.second < 10.0)
+        {
+            if(!next.first.propagateLowerBound())
+                return false;
+        }
+        else
+        {
+            if(!next.first.propagateUpperBound())
+                return false;
+        }
+    }
+    return true;
+}

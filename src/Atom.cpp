@@ -62,6 +62,11 @@ double Atom::getUpperBound() const {
     return data->upperBound;
 }
 
+double Atom::getBoundsDifference() const {
+    assert(data != NULL);
+    return data->upperBound - data->lowerBound > EPSILON ? data->upperBound - data->lowerBound : 0.0;
+}
+
 void Atom::set(Program& program, int id) {
     assert(data == NULL);
     pair<unordered_map<int, Data*>::iterator, bool> res = program.atoms.insert(unordered_map<int, Data*>::value_type(id, NULL));
@@ -137,6 +142,7 @@ bool Atom::updateLowerBound(double value) {
         if(isProcessedConstant())
             return false;
 
+        Program::getInstance().addAssignment(*this, data->lowerBound);
         data->lowerBound = value;
         if(isInconsistent())
             return false;
@@ -153,6 +159,21 @@ bool Atom::updateLowerBound(double value) {
     return true;
 }
 
+bool Atom::propagateLowerBound() {
+    assert(data != NULL);
+    trace(std, 4, "Propagating lower bound of %s\n", getName().c_str());
+
+    setBoundsForLinearProgram();
+
+    for(list<Rule*>::iterator it = data->positiveBodyOccurrences.begin(); it != data->positiveBodyOccurrences.end(); ++it)
+        if(!(**it).onIncreaseLowerBound())
+            return false;
+    for(list<Rule*>::iterator it = data->negativeBodyOccurrences.begin(); it != data->negativeBodyOccurrences.end(); ++it)
+        if(!(**it).onDecreaseUpperBound())
+            return false;
+    return true;
+}
+
 bool Atom::updateSourcePointer(double value, Rule* sourcePointer) {
     assert(data != NULL);
     assert(0 <= value && value <= 1);
@@ -162,7 +183,6 @@ bool Atom::updateSourcePointer(double value, Rule* sourcePointer) {
         if(isProcessedConstant()) {
             trace(std, 4, " Skip constant\n");
             return true;
-            data->upperBound = value;
         }
 
         data->upperBound = value;
@@ -185,23 +205,53 @@ bool Atom::updateUpperBound(double value) {
     if(value < data->upperBound) {
         assert(!isProcessedConstant());
         trace(std, 4, "Updating upper bound of %s from %g to %g\n", getName().c_str(), data->upperBound, value);
+        Program::getInstance().addAssignment(*this, 10 + data->upperBound);
         data->upperBound = value;
-
-        for(list<Rule*>::iterator it = data->positiveBodyOccurrences.begin(); it != data->positiveBodyOccurrences.end(); ++it)
-            if(!(**it).onDecreaseUpperBound())
-                return false;
-        for(list<Rule*>::iterator it = data->negativeBodyOccurrences.begin(); it != data->negativeBodyOccurrences.end(); ++it)
-            if(!(**it).onIncreaseLowerBound())
-                return false;
-
-        if(!isConstant()) {
-            if(!findSourcePointer())
-                return false;
-            assert(!isInconsistent());
-            setBoundsForLinearProgram();
-        }
     }
     return true;
+}
+
+bool Atom::propagateUpperBound() {
+    assert(data != NULL);
+    assert(!isProcessedConstant());
+    trace(std, 4, "Propagating upper bound of %s\n", getName().c_str());
+
+    for(list<Rule*>::iterator it = data->positiveBodyOccurrences.begin(); it != data->positiveBodyOccurrences.end(); ++it)
+        if(!(**it).onDecreaseUpperBound())
+            return false;
+    for(list<Rule*>::iterator it = data->negativeBodyOccurrences.begin(); it != data->negativeBodyOccurrences.end(); ++it)
+        if(!(**it).onIncreaseLowerBound())
+            return false;
+
+    if(!isConstant()) {
+        if(!findSourcePointer())
+            return false;
+        assert(!isInconsistent());
+        setBoundsForLinearProgram();
+    }
+    return true;
+}
+
+bool Atom::split() {
+    assert(getBoundsDifference() > 0.0);
+    assert(!isProcessedConstant());
+    trace(std, 2, "Split on atom %s\n", getName().c_str());
+    if(!updateLowerBound(getLowerBound() + getBoundsDifference()/2))
+        return false;
+    if(!Program::getInstance().propagate())
+        return false;
+    return Program::getInstance().computeFuzzyAnswerSet2();
+}
+
+bool Atom::split2() {
+    assert(getBoundsDifference() > 0.0);
+    assert(!isProcessedConstant());
+    trace(std, 2, "Split2 on atom %s\n", getName().c_str());
+    if(!updateUpperBound(getLowerBound() + getBoundsDifference()/2))
+        return false;
+    if(!Program::getInstance().propagate())
+        return false;
+    return Program::getInstance().computeFuzzyAnswerSet2();
 }
 
 void Atom::initConstant() {
@@ -225,7 +275,7 @@ bool Atom::processConstant() {
         if(!(**it).onIncreaseLowerBound())
             return false;
     for(list<Rule*>::iterator it = data->negativeBodyOccurrences.begin(); it != data->negativeBodyOccurrences.end(); ++it)
-        if(!(**it).onDecreaseUpperBound())
+        if(!(**it).onDecreaseUpperBound() || !(**it).onIncreaseLowerBound())
             return false;
 
     for(list<Rule*>::iterator rule = data->positiveBodyOccurrences.begin(); rule != data->positiveBodyOccurrences.end(); ++rule)
@@ -348,4 +398,16 @@ int Atom::getColumnIndexInBilevelProgram(int& nextIdInBilevelProgram) {
     if(data->columnInBilevelProgram == 0)
         data->columnInBilevelProgram = nextIdInBilevelProgram++;
     return data->columnInBilevelProgram;
+}
+
+void Atom::unrollLowerBound(double value) {
+    trace(std, 3, "Unrolling lower bound of %s to %g\n", getName().c_str(), value);
+    data->lowerBound = value;
+    setBoundsForLinearProgram();
+}
+
+void Atom::unrollUpperBound(double value) {
+    trace(std, 3, "Unrolling upper bound of %s to %g\n", getName().c_str(), value);
+    data->upperBound = value;
+    setBoundsForLinearProgram();
 }

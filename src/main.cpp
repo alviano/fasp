@@ -4,7 +4,8 @@
 int main(int argc, char** argv) {
     __options__.parse(argc, argv);
 
-    Program program(*__options__.tnorm);
+    Program::init(*__options__.tnorm);
+    Program& program = Program::getInstance();
     Parser parser(program, cin);
     parser.parse();
     trace(std, 5, "Parsed program:\n%s\n", program.toString().c_str());
@@ -25,6 +26,8 @@ int main(int argc, char** argv) {
         program.printInterpretation(cout);
     else
         program.computeFuzzyAnswerSet();
+
+    Program::free();
 
     return 0;
 }

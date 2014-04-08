@@ -35,6 +35,7 @@ public:
     const string& getName() const;
     double getLowerBound() const;
     double getUpperBound() const;
+    double getBoundsDifference() const;
     
     void set(Program& program, int id);
     void setName(const string& value);
@@ -48,12 +49,20 @@ public:
     bool updateLowerBound(double value);
     bool updateSourcePointer(double value, Rule* sourcePointer);
     bool updateUpperBound(double value);
+    bool propagateLowerBound();
+    bool propagateUpperBound();
     void initConstant();
     bool processConstant();
     void parseBoundsForConstant();
     bool initSourcePointer();
     bool findSourcePointer();
     bool checkConstant() const;
+    
+    bool split();
+    bool split2();
+    
+    void unrollLowerBound(double value);
+    void unrollUpperBound(double value);
 
     bool isInconsistent() const;
 
